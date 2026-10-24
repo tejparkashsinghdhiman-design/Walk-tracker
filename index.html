@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Walk Tracker</title>
+<style>
+:root{--bg:#e9f0ee;--card:#f8fbfa;--ink:#10312b;--mut:#5b726c;--acc:#0e7c66;--onacc:#fff;--warn:#a86a0c;--bad:#b3412e;--line:#cfdcd8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1b18;--card:#152723;--ink:#e3f1ed;--mut:#92aca5;--acc:#3fc8a5;--onacc:#06231c;--warn:#e0a548;--bad:#ef8a76;--line:#27403a}}
+:root[data-theme="dark"]{--bg:#0d1b18;--card:#152723;--ink:#e3f1ed;--mut:#92aca5;--acc:#3fc8a5;--onacc:#06231c;--warn:#e0a548;--bad:#ef8a76;--line:#27403a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px 18px 40px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+h1{font-size:20px;margin:0;font-weight:650}
+h2{font-size:16px;margin:18px 0 10px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.row{display:flex;gap:8px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;min-width:44px}
+.chip.on{background:var(--acc);color:var(--onacc);border-color:var(--acc)}
+.tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:12px}
+.tabs button{flex:1;border:0;background:none;border-radius:9px;padding:8px;font-weight:600;color:var(--mut)}
+.tabs button.on{background:var(--acc);color:var(--onacc)}
+.gps{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:14px;min-height:28px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:18px}
+.bars i{width:6px;border-radius:2px;background:var(--line)}
+.bars i:nth-child(1){height:6px}.bars i:nth-child(2){height:10px}.bars i:nth-child(3){height:14px}.bars i:nth-child(4){height:18px}
+.bars.l1 i:nth-child(-n+1),.bars.l2 i:nth-child(-n+2),.bars.l3 i:nth-child(-n+3),.bars.l4 i:nth-child(-n+4){background:var(--acc)}
+.bars.l1 i:nth-child(-n+1){background:var(--bad)}.bars.l2 i:nth-child(-n+2){background:var(--warn)}
+.hero{padding:18px 0 14px;text-align:center}
+#steps{font-size:clamp(68px,22vw,110px);font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.u{font-size:18px;font-weight:600;color:var(--acc)}
+#dist{font-size:30px;font-weight:650;margin-top:8px;font-variant-numeric:tabular-nums}
+.pb{height:10px;border-radius:99px;background:var(--line);overflow:hidden}
+.pb i{display:block;height:100%;width:0;background:var(--acc);border-radius:99px;transition:width .4s}
+#pt{display:block;color:var(--mut);font-size:13px;margin:6px 2px 14px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+.stat b{display:block;font-size:24px;font-variant-numeric:tabular-nums;line-height:1.25}
+.stat span{color:var(--mut);font-size:13px}
+.actions{display:flex;gap:12px}
+.btn{flex:1;min-height:58px;border-radius:16px;border:2px solid var(--line);background:var(--card);font-weight:650;font-size:18px}
+.btn.main{background:var(--acc);border-color:var(--acc);color:var(--onacc)}
+.btn.stop{border-color:var(--bad);color:var(--bad)}
+[hidden]{display:none!important}
+#msg{min-height:22px;margin:12px 2px 0;font-size:14px;color:var(--warn)}
+.tip{color:var(--mut);font-size:13px;margin:6px 2px 10px}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+li small{display:block;color:var(--mut)}
+li .r{text-align:right;margin-left:auto}
+.x{background:none;border:0;color:var(--mut);padding:6px;font-size:13px}
+.link{background:none;border:0;color:var(--mut);text-decoration:underline;padding:12px 0}
+.empty{color:var(--mut);font-size:14px}
+.plot{position:relative;height:100px;display:flex;align-items:flex-end;gap:8px;border-bottom:1px solid var(--line);margin-top:6px}
+.col{flex:1;height:100%;display:flex;align-items:flex-end}
+.col i{display:block;width:100%;background:var(--line);border-radius:5px 5px 0 0;min-height:2px}
+.col i.hit{background:var(--acc)}
+.goal{position:absolute;left:0;right:0;border-top:2px dashed var(--warn);opacity:.7}
+.lab{display:flex;gap:8px;color:var(--mut);font-size:12px;text-align:center;margin:4px 0 14px}.lab span{flex:1}
+.f{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:8px}
+.f input{width:96px;background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 8px;text-align:right}
+</style>
+</head>
+<body>
+<main>
+  <header><h1>Walk tracker</h1><div class="row"><button id="unitBtn" class="chip" aria-label="Switch units">km</button><button id="setBtn" class="chip" aria-label="Settings">&#9881;</button></div></header>
+  <nav class="tabs"><button id="tW" class="on">Walk</button><button id="tS">Stats</button></nav>
+
+  <section id="vW">
+    <div class="gps"><div class="bars" id="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></div><span id="gpsTxt">GPS idle. Press Start.</span></div>
+    <section class="hero"><div id="steps">0</div><div class="u">steps</div><div id="dist">0.00 km</div></section>
+    <div class="pb" role="progressbar" aria-label="Daily step goal"><i id="pf"></i></div><small id="pt"></small>
+    <section class="stats">
+      <div class="stat"><b id="time">0:00</b><span>Time</span></div>
+      <div class="stat"><b id="pace">--:--</b><span id="paceLbl">Pace per km</span></div>
+      <div class="stat"><b id="kcal">0</b><span>Calories (kcal)</span></div>
+      <div class="stat"><b id="cad">--</b><span>Steps per minute</span></div>
+    </section>
+    <div class="actions">
+      <button class="btn main" id="startBtn">Start walk</button>
+      <button class="btn" id="pauseBtn" hidden>Pause</button>
+      <button class="btn main" id="resumeBtn" hidden>Resume</button>
+      <button class="btn stop" id="stopBtn" hidden>Finish</button>
+    </div>
+    <div id="msg" role="status"></div>
+    <p class="tip" id="mode"></p>
+    <p class="tip">Start outdoors and wait for 3 or more bars. Keep this page open with the screen on. Hold your phone in hand or pocket. Indoors, steps are counted by the motion sensor and distance uses your stride.</p>
+  </section>
+
+  <section id="vS" hidden>
+    <div class="stats">
+      <div class="stat"><b id="wSteps">0</b><span>Steps, last 7 days</span></div>
+      <div class="stat"><b id="wDist">0</b><span id="wDl">km, last 7 days</span></div>
+      <div class="stat"><b id="wAvg">0</b><span>Average steps per day</span></div>
+      <div class="stat"><b id="wStr">0</b><span>Day streak (goal met)</span></div>
+    </div>
+    <div class="plot" id="plot" aria-label="Steps per day, last 7 days"></div><div class="lab" id="lab"></div>
+    <h2>Past walks</h2>
+    <ul id="hist"></ul>
+    <button class="link" id="clearBtn" hidden>Clear history</button>
+  </section>
+
+  <section id="vT" hidden>
+    <h2>Settings</h2>
+    <label class="f">Height (cm)<input id="inH" type="number" inputmode="numeric" min="100" max="230"></label>
+    <label class="f">Weight (kg)<input id="inW" type="number" inputmode="numeric" min="30" max="250"></label>
+    <label class="f">Daily step goal<input id="inG" type="number" inputmode="numeric" min="1000" max="100000" step="500"></label>
+    <div class="f"><span id="strTxt"></span><button class="x" id="strBtn">Reset</button></div>
+    <p class="tip">Stride starts from your height and auto-calibrates after walks of 150+ steps with a good GPS signal. This makes step counts and indoor distance more accurate over time.</p>
+  </section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let unit='km',hist=[],set={h:170,w:70,g:8000,st:0},state='idle',dist=0,elapsed=0,tStart=0,watchId=null,kf=null,anchor=null,timer=null,wake=null,hid=false,clearArm=false,
+sSteps=0,gSteps=0,estD=0,sensor=false,lastFix=0,raf=0,base=9.8,sm=0,p1=0,p2=0,peak=2,lastS=0,run=0;
+const stride=()=>set.st||set.h*0.00415;
+const dk=t=>{const d=new Date(t);return d.getFullYear()*10000+d.getMonth()*100+d.getDate()};
+const hn=h=>h.n!=null?h.n:Math.round(h.m/stride());
+const sched=()=>{raf||(raf=requestAnimationFrame(()=>{raf=0;render()}))};
+
+function load(){try{unit=localStorage.getItem('wt_unit')==='mi'?'mi':'km';
+const h=JSON.parse(localStorage.getItem('wt_hist')||'[]');hist=Array.isArray(h)?h.filter(x=>x&&isFinite(x.m)&&isFinite(x.s)&&isFinite(x.ts)):[];
+const s=JSON.parse(localStorage.getItem('wt_set')||'{}');['h','w','g','st'].forEach(k=>{if(typeof s[k]==='number'&&isFinite(s[k])&&(s[k]>0||k==='st'))set[k]=s[k]})}catch(e){}}
+function save(){dmCache=null;try{localStorage.setItem('wt_unit',unit);localStorage.setItem('wt_hist',JSON.stringify(hist));localStorage.setItem('wt_set',JSON.stringify(set))}catch(e){}}
+
+function hav(a,b){const R=6371008.8,r=Math.PI/180,dLa=(b.lat-a.lat)*r,dLo=(b.lng-a.lng)*r;const x=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+function kalman(lat,lng,acc,t){
+  if(!kf){kf={lat,lng,v:acc*acc,t};return kf}
+  const dt=Math.max(0,(t-kf.t)/1000);kf.v+=dt*9;
+  const K=kf.v/(kf.v+acc*acc);
+  kf.lat+=K*(lat-kf.lat);kf.lng+=K*(lng-kf.lng);kf.v=(1-K)*kf.v;kf.t=t;return kf;
+}
+function setSignal(acc){
+  const b=$('bars');
+  if(acc==null){b.className='bars';$('gpsTxt').textContent='Searching for GPS…';return}
+  const lv=acc<=8?4:acc<=15?3:acc<=25?2:1;
+  b.className='bars l'+lv;
+  $('gpsTxt').textContent=['','Weak signal, not counting','Fair signal','Good signal','Excellent signal'][lv]+' (±'+Math.round(acc)+' m)';
+}
+
+function onFix(p){
+  const c=p.coords,acc=c.accuracy;setSignal(acc);
+  if(state!=='running'||acc>25)return;
+  const t=p.timestamp||Date.now();lastFix=Date.now();
+  const f=kalman(c.latitude,c.longitude,Math.max(acc,3),t);
+  const pt={lat:f.lat,lng:f.lng,t};
+  if(!anchor){anchor=pt;return}
+  const dt=(t-anchor.t)/1000;if(dt<=0)return;
+  const d=hav(anchor,pt);
+  if(d<Math.max(2,acc*0.3))return;
+  if(d/dt>6)return;
+  dist+=d;anchor=pt;sched();
+}
+function onErr(e){
+  if(e.code===1){stopAll();setState('idle');msg('Location is blocked. Allow location for this page in your browser settings, then press Start again.')}
+  else if(e.code===2){msg('Location unavailable. Steps still count with the motion sensor.')}
+  else{setSignal(null)}
+}
+function startWatch(){
+  if(!('geolocation' in navigator)){msg('No GPS here. Distance will use your stride.');return true}
+  setSignal(null);
+  watchId=navigator.geolocation.watchPosition(onFix,onErr,{enableHighAccuracy:true,maximumAge:0,timeout:20000});return true;
+}
+function stopAll(){
+  if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}
+  unlock();clearInterval(timer);removeEventListener('devicemotion',onMotion);
+}
+
+// Step detection: filtered acceleration magnitude, adaptive peak threshold,
+// cadence validation (4 steady steps before counting, then counted live)
+function onMotion(e){
+  const a=e.accelerationIncludingGravity;if(!a||a.x==null)return;
+  sensor=true;if(state!=='running')return;
+  const t=Date.now(),m=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z);
+  base+=(m-base)*0.02;
+  p2=p1;p1=sm;sm+=((m-base)-sm)*0.3;
+  if(p1>p2&&p1>=sm&&p1>Math.max(0.8,peak*0.55)){
+    const dt=t-lastS;
+    if(dt>280){lastS=t;step(t,dt,p1)}
+  }
+}
+function step(t,dt,pk){
+  if(dt>1500){run=1;return}
+  run++;peak+=(pk-peak)*0.2;
+  const n=run===4?4:run>4?1:0;if(!n)return;
+  sSteps+=n;
+  if(t-lastFix>8000){dist+=n*stride();estD+=n*stride();anchor=null;kf=null}else gSteps+=n;
+  sched();
+}
+
+// Crash recovery: snapshot the walk every 10 s so a reload or killed tab doesn't lose it
+let tk=0;
+function snap(){try{localStorage.setItem('wt_live',JSON.stringify({d:dist,e:now(),s:sSteps,g:gSteps,x:estD,t:Date.now()}))}catch(e){}}
+function tick(){if(!document.hidden)render();if(++tk%10===0)snap()}
+function recover(){try{const l=JSON.parse(localStorage.getItem('wt_live')||'null');if(!l||Date.now()-l.t>216e5||![l.d,l.e,l.s,l.g,l.x].every(Number.isFinite)||!(l.d>0||l.s>0))return;dist=l.d;elapsed=l.e;sSteps=l.s;gSteps=l.g;estD=l.x;sensor=l.s>0;setState('paused');msg('Recovered your unfinished walk. Press Resume to continue or Finish to save it.')}catch(e){}}
+async function lock(){try{if('wakeLock' in navigator&&state==='running'&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}}
+function unlock(){try{wake&&wake.release()}catch(e){}wake=null}
+function msg(t){$('msg').textContent=t||''}
+const now=()=>elapsed+(state==='running'?Date.now()-tStart:0);
+const curSteps=()=>sensor?sSteps:Math.round(dist/stride());
+
+function fmtTime(ms){const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(r).padStart(2,'0')}
+function fmtPace(ms,m){if(m<50)return '--:--';const u=unit==='km'?1000:1609.344;const s=(ms/1000)/(m/u);if(!isFinite(s)||s>5999)return '--:--';let mi=Math.floor(s/60),sc=Math.round(s%60);if(sc===60){mi++;sc=0}return mi+':'+String(sc).padStart(2,'0')}
+const fmtDist=m=>(unit==='km'?m/1000:m/1609.344).toFixed(2);
+function kcal(m,ms){const min=ms/60000;if(min<=0)return 0;const sp=Math.min(200,m/min);return (0.1*sp+3.5)*set.w/200*min}
+
+let dmCache=null;
+function dmap(){if(dmCache)return dmCache;const m={};hist.forEach(h=>{const k=dk(h.ts),o=m[k]||(m[k]={n:0,m:0});o.n+=hn(h);o.m+=h.m});return dmCache=m}
+function dayAt(m,i){const t=new Date(),d=new Date(t.getFullYear(),t.getMonth(),t.getDate()-i),v=m[dk(d)]||{n:0,m:0};return{l:'SMTWTFS'[d.getDay()],n:v.n,m:v.m}}
+
+function render(){
+  const n=curSteps(),ms=now(),live=state!=='idle';
+  $('steps').textContent=n.toLocaleString();
+  $('dist').textContent=fmtDist(dist)+' '+unit;
+  $('time').textContent=fmtTime(ms);
+  $('pace').textContent=fmtPace(ms,dist);$('paceLbl').textContent='Pace per '+unit;
+  $('kcal').textContent=Math.round(kcal(dist,ms));
+  $('cad').textContent=ms>20000&&n>0?Math.round(n/(ms/60000)):'--';
+  $('unitBtn').textContent=unit;
+  const today=dayAt(dmap(),0).n+(live?n:0),g=set.g;
+  $('pf').style.width=Math.min(100,today/g*100)+'%';
+  $('pt').textContent=today.toLocaleString()+' / '+g.toLocaleString()+' steps today'+(today>=g?' ✓ Goal reached':'');
+  $('mode').textContent=live?(sensor?'Counting steps with the motion sensor.':'Step sensor not available, steps estimated from distance and stride.'):'';
+}
+
+function setState(s){
+  state=s;
+  $('startBtn').hidden=s!=='idle';$('pauseBtn').hidden=s!=='running';
+  $('resumeBtn').hidden=s!=='paused';$('stopBtn').hidden=s==='idle';
+  if(s==='idle'){$('bars').className='bars';$('gpsTxt').textContent='GPS idle. Press Start.'}
+  if(s==='paused'){$('bars').className='bars';$('gpsTxt').textContent='Paused'}
+}
+
+async function begin(reset){
+  if(state==='running')return;
+  msg('');
+  if(reset)try{localStorage.removeItem('wt_live')}catch(e){}
+  try{if(window.DeviceMotionEvent&&DeviceMotionEvent.requestPermission)await DeviceMotionEvent.requestPermission()}catch(e){}
+  if(reset){dist=elapsed=sSteps=gSteps=estD=0}
+  if(!startWatch())return;
+  kf=null;anchor=null;hid=false;run=0;base=9.8;sm=p1=p2=0;peak=2;lastS=0;lastFix=Date.now();
+  addEventListener('devicemotion',onMotion);
+  tStart=Date.now();setState('running');
+  clearInterval(timer);timer=setInterval(tick,1000);
+  lock();render();
+  setTimeout(()=>{if(state==='running'&&!sensor)msg('Step sensor unavailable in this browser. Steps are estimated from distance.')},3000);
+}
+function pause(){elapsed+=Date.now()-tStart;stopAll();setState('paused');snap();render()}
+function finish(){
+  if(state==='running')elapsed+=Date.now()-tStart;
+  stopAll();const was=state;setState('idle');try{localStorage.removeItem('wt_live')}catch(e){}
+  const n=curSteps();let note='';
+  if(was!=='idle'&&(dist>=10||n>=15)){
+    if(sensor&&gSteps>=150&&dist-estD>=100){const r=(dist-estD)/gSteps;if(r>.35&&r<1.2){set.st=set.st?set.st*.6+r*.4:r;note=' Stride calibrated to '+set.st.toFixed(2)+' m.'}}
+    hist.unshift({ts:Date.now(),m:dist,s:elapsed,n,k:kcal(dist,elapsed)});hist=hist.slice(0,200);save();msg('Walk saved.'+note);
+  }else if(was!=='idle'){msg('Walk too short to save.')}
+  render();
+}
+
+function renderStats(){
+  const m=dmap(),d=[];for(let i=6;i>=0;i--)d.push(dayAt(m,i));
+  const g=set.g,mx=Math.max(g,...d.map(x=>x.n),1);
+  $('plot').innerHTML=d.map(x=>'<div class="col" title="'+x.n.toLocaleString()+' steps"><i class="'+(x.n>=g?'hit':'')+'" style="height:'+(x.n/mx*100)+'%"></i></div>').join('')+'<div class="goal" style="bottom:'+(g/mx*100)+'%"></div>';
+  $('lab').innerHTML=d.map(x=>'<span>'+x.l+'</span>').join('');
+  const ts=d.reduce((a,x)=>a+x.n,0),td=d.reduce((a,x)=>a+x.m,0);
+  $('wSteps').textContent=ts.toLocaleString();$('wDist').textContent=fmtDist(td);$('wDl').textContent=unit+', last 7 days';
+  $('wAvg').textContent=Math.round(ts/7).toLocaleString();
+  let s=0,i=d[6].n>=g?0:1;while(i<400&&dayAt(m,i).n>=g){s++;i++}
+  $('wStr').textContent=s;
+  const ul=$('hist');ul.innerHTML='';$('clearBtn').hidden=!hist.length;
+  if(!hist.length){const li=document.createElement('li');li.className='empty';li.textContent='No walks yet. Your finished walks show up here.';ul.appendChild(li);return}
+  hist.slice(0,60).forEach((h,i)=>{
+    const li=document.createElement('li'),dt=new Date(h.ts);
+    li.innerHTML='<div><b>'+fmtDist(h.m)+' '+unit+'</b><small>'+dt.toLocaleDateString(undefined,{day:'numeric',month:'short'})+', '+dt.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})+'</small></div><div class="r"><b>'+hn(h).toLocaleString()+' steps</b><small>'+fmtTime(h.s)+' · '+fmtPace(h.s,h.m)+' /'+unit+'</small></div><button class="x" data-i="'+i+'" aria-label="Delete walk">×</button>';
+    ul.appendChild(li);
+  });
+}
+function renderSet(){
+  $('inH').value=set.h;$('inW').value=set.w;$('inG').value=set.g;
+  $('strTxt').textContent='Stride '+stride().toFixed(2)+' m ('+(set.st?'calibrated':'from height')+')';
+  $('strBtn').hidden=!set.st;
+}
+function show(v){
+  ['W','S','T'].forEach(k=>{$('v'+k).hidden=k!==v});
+  $('tW').classList.toggle('on',v==='W');$('tS').classList.toggle('on',v==='S');$('setBtn').classList.toggle('on',v==='T');
+  if(v==='S')renderStats();if(v==='T')renderSet();
+}
+
+$('startBtn').onclick=()=>begin(true);
+$('resumeBtn').onclick=()=>begin(false);
+$('pauseBtn').onclick=pause;
+$('stopBtn').onclick=finish;
+$('tW').onclick=()=>show('W');$('tS').onclick=()=>show('S');$('setBtn').onclick=()=>show('T');
+$('unitBtn').onclick=()=>{unit=unit==='km'?'mi':'km';save();render();if(!$('vS').hidden)renderStats()};
+[['inH','h',100,230],['inW','w',30,250],['inG','g',1000,100000]].forEach(([id,k,lo,hi])=>{$(id).onchange=()=>{const v=parseFloat($(id).value);if(isFinite(v))set[k]=Math.round(Math.min(hi,Math.max(lo,v)));save();renderSet();render()}});
+$('strBtn').onclick=()=>{set.st=0;save();renderSet();render()};
+$('hist').onclick=e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.arm){hist.splice(+b.dataset.i,1);save();renderStats();render()}
+  else{b.dataset.arm=1;b.textContent='Delete?';setTimeout(()=>{if(b.isConnected){delete b.dataset.arm;b.textContent='×'}},2500)}
+};
+$('clearBtn').onclick=()=>{
+  if(!clearArm){clearArm=true;$('clearBtn').textContent='Tap again to clear all walks';setTimeout(()=>{clearArm=false;$('clearBtn').textContent='Clear history'},3000);return}
+  hist=[];save();clearArm=false;$('clearBtn').textContent='Clear history';renderStats();render();
+};
+document.addEventListener('visibilitychange',()=>{
+  if(state!=='running')return;
+  if(document.visibilityState==='hidden'){hid=true}
+  else{lock();if(hid){kf=null;anchor=null;run=0;hid=false;msg('The screen was off, so part of your walk may not be counted. Keep the screen on while walking.')}}
+});
+
+load();recover();render();
+</script>
+</body>
+</html>
