@@ -28,18 +28,21 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Copy web app into www
+      - name: Copy web app into www (with Today tab)
         run: |
           mkdir -p www
-          cp index.html www/index.html
+          cp index.html daily.js www/
+          sed -i 's#</body>#<script src="daily.js"></script></body>#' www/index.html
 
       - name: Create Android project
         run: npx cap add android
 
-      - name: Add location and wake-lock permissions
+      - name: Patch manifest and add native step counter
         run: |
-          sed -i 's#<application#<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-feature android:name="android.hardware.location.gps" android:required="false" />\n    <application#' android/app/src/main/AndroidManifest.xml
-          grep -n 'uses-permission' android/app/src/main/AndroidManifest.xml
+          python3 native/patch_manifest.py
+          D=android/app/src/main/java/com/walktracker/app
+          mkdir -p $D
+          cp native/*.java $D/
 
       - name: Sync web assets
         run: npx cap sync android
