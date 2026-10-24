@@ -1,0 +1,8 @@
+{
+  "appId": "com.walktracker.app",
+  "appName": "Walk Tracker",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
