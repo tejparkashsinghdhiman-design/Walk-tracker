@@ -7,9 +7,10 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
 
-/** Restarts the step service after the phone reboots. */
+/** Restarts the all-day step service after reboot, app update or quick-boot. */
 public class BootReceiver extends BroadcastReceiver {
   @Override public void onReceive(Context c, Intent i) {
+    try { Walk.load(c); if (Walk.active) Walk.pause(c); } catch (Exception e) { /* ignore */ }
     try {
       if (Build.VERSION.SDK_INT < 29
           || c.checkSelfPermission("android.permission.ACTIVITY_RECOGNITION") == PackageManager.PERMISSION_GRANTED) {

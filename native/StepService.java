@@ -56,12 +56,21 @@ public class StepService extends Service implements SensorEventListener {
     long now = System.currentTimeMillis();
     long wall = now - (SystemClock.elapsedRealtimeNanos() - e.timestamp) / 1000000L;
     if (wall > now || now - wall > 172800000L) wall = now;
-    StepStore.onRaw(this, (long) e.values[0], wall);
+    if (StepStore.onRaw(this, (long) e.values[0], wall)) goalNote();
     long t = SystemClock.elapsedRealtime();
     if (t - lastN > 5000) {
       lastN = t;
       ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(1, note());
     }
+  }
+
+  private void goalNote() {
+    NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+    if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(new NotificationChannel("goal", "Goal reached", NotificationManager.IMPORTANCE_DEFAULT));
+    nm.notify(3, new NotificationCompat.Builder(this, "goal").setSmallIcon(android.R.drawable.star_on)
+        .setContentTitle("Daily goal reached")
+        .setContentText(String.format("You hit %,d steps today. Nice work!", StepStore.today(this)))
+        .setAutoCancel(true).build());
   }
 
   @Override public void onAccuracyChanged(Sensor s, int a) {}

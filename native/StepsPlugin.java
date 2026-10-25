@@ -1,6 +1,7 @@
 package com.walktracker.app;
 
 import android.Manifest;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.hardware.Sensor;
@@ -119,10 +120,62 @@ public class StepsPlugin extends Plugin {
   }
 
   @PluginMethod
+  public void setGoal(PluginCall c) { StepStore.setGoal(getContext(), c.getInt("goal", 8000)); c.resolve(); }
+
+  @PluginMethod
+  public void status(PluginCall c) {
+    Context x = getContext();
+    JSObject o = new JSObject();
+    o.put("ignoring", ((PowerManager) x.getSystemService(Context.POWER_SERVICE)).isIgnoringBatteryOptimizations(x.getPackageName()));
+    c.resolve(o);
+  }
+
+  private boolean launch(Intent i) {
+    try { i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); getContext().startActivity(i); return true; } catch (Exception e) { return false; }
+  }
+
+  private static final String[][] AUTO = {
+    {"com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"},
+    {"com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"},
+    {"com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity"},
+    {"com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"},
+    {"com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"},
+    {"com.samsung.android.lool", "com.samsung.android.sm.battery.ui.BatteryActivity"},
+    {"com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity"}
+  };
+
+  @PluginMethod
+  public void openSettings(PluginCall c) {
+    String pkg = getContext().getPackageName(), kind = c.getString("kind", "app");
+    boolean ok = false;
+    if ("battery".equals(kind)) {
+      ok = launch(new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + pkg)));
+    } else if ("autostart".equals(kind)) {
+      for (String[] a : AUTO) {
+        if (launch(new Intent().setComponent(new ComponentName(a[0], a[1])))) { ok = true; break; }
+      }
+    }
+    if (!ok) launch(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg)));
+    JSObject o = new JSObject();
+    o.put("opened", ok);
+    c.resolve(o);
+  }
+
+  @PluginMethod
+  public void shareText(PluginCall c) {
+    Intent s = new Intent(Intent.ACTION_SEND).setType("text/plain")
+        .putExtra(Intent.EXTRA_TEXT, c.getString("text", "")).putExtra(Intent.EXTRA_SUBJECT, "Walk Tracker data");
+    Intent ch = Intent.createChooser(s, "Export data");
+    ch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    try { getContext().startActivity(ch); c.resolve(); } catch (Exception e) { c.reject(String.valueOf(e.getMessage())); }
+  }
+
+  @PluginMethod
   public void history(PluginCall c) {
-    JSArray a = StepStore.history(getContext());
+    JSArray a = StepStore.history(getContext(), c.getInt("days", 30));
     JSObject o = new JSObject();
     o.put("days", a);
+    o.put("hours", StepStore.hours(getContext()));
     c.resolve(o);
   }
 }

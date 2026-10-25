@@ -47,7 +47,7 @@ public class WalkService extends Service implements LocationListener {
     try {
       if (Build.VERSION.SDK_INT >= 34) startForeground(2, note(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
       else startForeground(2, note());
-    } catch (Exception e) { stopSelf(); return START_NOT_STICKY; }
+    } catch (Exception e) { Walk.pause(this); stopSelf(); return START_NOT_STICKY; }
     String act = i == null ? null : i.getAction();
     if ("stop".equals(act) || !Walk.active) {
       off(); stopForeground(true); stopSelf(); return START_NOT_STICKY;
