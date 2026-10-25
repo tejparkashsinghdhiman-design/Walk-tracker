@@ -21,14 +21,14 @@
 
   async function refresh() {
     try {
-      const r = await S.today(), n = r.steps || 0, g = set.g, m = n * stride();
+      const r = await S.today(), n = Math.round((r.steps || 0) * set.cf / 100), g = set.g, m = n * stride();
       $('dSteps').textContent = n.toLocaleString();
       $('dDist').textContent = fmtDist(m) + ' ' + unit;
       $('dKcal').textContent = Math.round(0.55 * set.w * m / 1000);
       $('dPf').style.width = Math.min(100, n / g * 100) + '%';
       $('dPt').textContent = n.toLocaleString() + ' / ' + g.toLocaleString() + ' steps' + (n >= g ? ' \u2713 Goal reached' : '');
       if (r.sensor === false) $('dMsg').textContent = 'This phone has no step counter sensor.';
-      const h = (await S.history()).days || [], mx = Math.max(g, ...h.map(x => x.n), 1);
+      const h = ((await S.history()).days || []).map(x => ({d: x.d, n: Math.round(x.n * set.cf / 100)})), mx = Math.max(g, ...h.map(x => x.n), 1);
       $('dPlot').innerHTML = h.map(x => '<div class="col"><i class="' + (x.n >= g ? 'hit' : '') + '" style="height:' + x.n / mx * 100 + '%"></i></div>').join('')
         + '<div class="goal" style="bottom:' + g / mx * 100 + '%"></div>';
       $('dLab').innerHTML = h.map(x => '<span>' + 'SMTWTFS'[new Date(+x.d.slice(0, 4), +x.d.slice(4, 6) - 1, +x.d.slice(6)).getDay()] + '</span>').join('');
