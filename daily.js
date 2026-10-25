@@ -54,5 +54,42 @@
   setInterval(() => { if (!v.hidden && !document.hidden) refresh(); }, 3000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !v.hidden) refresh(); });
   show('D');
-  S.start().then(refresh).catch(() => { $('dMsg').textContent = 'Allow the Physical activity permission so steps can be counted all day.'; });
+  // ---- Native walk session: GPS + steps keep counting with the screen off
+  let pollT = null;
+  const apply = r => {
+    dist = r.dist; sSteps = r.steps; elapsed = r.ms; sensor = true; estD = r.estD || 0;
+    gSteps = Math.max(0, r.steps - Math.round(estD / stride()));
+    tStart = Date.now();
+    if (r.acc >= 0) setSignal(r.acc);
+    render();
+  };
+  const attach = r => {
+    if (!r.active) { clearInterval(pollT); pollT = null; return; }
+    setState(r.running ? 'running' : 'paused');
+    apply(r);
+    if (!pollT) pollT = setInterval(async () => {
+      try { const x = await S.walkState(); if (!x.active) { clearInterval(pollT); pollT = null; return; } apply(x); } catch (e) {}
+    }, 1000);
+  };
+  window.begin = async function (reset) {
+    msg('');
+    try { attach(reset ? await S.walkStart({ stride: stride() }) : await S.walkResume()); }
+    catch (e) { msg('Allow Precise location and Physical activity so walks keep counting with the screen off.'); }
+  };
+  $('pauseBtn').onclick = async () => { try { attach(await S.walkPause()); } catch (e) {} };
+  $('stopBtn').onclick = async () => {
+    try { const r = await S.walkStop(); apply(r); clearInterval(pollT); pollT = null; state = 'paused'; finish(); } catch (e) {}
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { msg(''); S.walkState().then(attach).catch(() => {}); } });
+  const tips = document.querySelectorAll('#vW .tip');
+  if (tips[1]) tips[1].textContent = 'Walks keep counting with the screen off or the app closed (a notification shows while a walk runs). Start outdoors and wait for 3 or more bars.';
+  S.walkState().then(r => {
+    if (r.active) attach(r);
+    else if (state === 'paused') { dist = elapsed = sSteps = gSteps = estD = 0; setState('idle'); msg(''); render(); }
+  }).catch(() => {});
+
+  S.start().then(() => {
+    refresh();
+    try { if (!localStorage.getItem('wt_ka')) { localStorage.setItem('wt_ka', '1'); S.keepAlive(); } } catch (e) {}
+  }).catch(() => { $('dMsg').textContent = 'Allow the Physical activity permission so steps can be counted all day.'; });
 })();

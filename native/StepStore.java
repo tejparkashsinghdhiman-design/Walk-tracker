@@ -50,6 +50,7 @@ class StepStore {
     long delta = cLast < 0 ? 0 : (raw >= cLast ? raw - cLast : raw);
     cToday += delta;
     cLast = raw;
+    if (delta > 0) Walk.onSteps(c, delta);
     save(c, roll);
   }
 
