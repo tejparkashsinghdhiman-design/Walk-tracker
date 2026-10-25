@@ -193,7 +193,7 @@ function step(t,dt,pk){
 }
 
 // Crash recovery: snapshot the walk every 10 s so a reload or killed tab doesn't lose it
-let tk=0;
+let tk=0,starting=false;
 function snap(){try{localStorage.setItem('wt_live',JSON.stringify({d:dist,e:now(),s:sSteps,g:gSteps,x:estD,t:Date.now()}))}catch(e){}}
 function tick(){if(!document.hidden)render();if(++tk%10===0)snap()}
 function recover(){try{const l=JSON.parse(localStorage.getItem('wt_live')||'null');if(!l||Date.now()-l.t>216e5||![l.d,l.e,l.s,l.g,l.x].every(Number.isFinite)||!(l.d>0||l.s>0))return;dist=l.d;elapsed=l.e;sSteps=l.s;gSteps=l.g;estD=l.x;sensor=l.s>0;setState('paused');msg('Recovered your unfinished walk. Press Resume to continue or Finish to save it.')}catch(e){}}
@@ -236,15 +236,16 @@ function setState(s){
 }
 
 async function begin(reset){
-  if(state==='running')return;
+  if(state==='running'||starting)return;
+  starting=true;
   msg('');
   if(reset)try{localStorage.removeItem('wt_live')}catch(e){}
   try{if(window.DeviceMotionEvent&&DeviceMotionEvent.requestPermission)await DeviceMotionEvent.requestPermission()}catch(e){}
   if(reset){dist=elapsed=sSteps=gSteps=estD=0}
-  if(!startWatch())return;
+  if(!startWatch()){starting=false;return}
   kf=null;anchor=null;hid=false;run=0;base=9.8;sm=p1=p2=0;peak=2;lastS=0;lastFix=Date.now();
   addEventListener('devicemotion',onMotion);
-  tStart=Date.now();setState('running');
+  tStart=Date.now();setState('running');starting=false;
   clearInterval(timer);timer=setInterval(tick,1000);
   lock();render();
   setTimeout(()=>{if(state==='running'&&!sensor)msg('Step sensor unavailable in this browser. Steps are estimated from distance.')},3000);

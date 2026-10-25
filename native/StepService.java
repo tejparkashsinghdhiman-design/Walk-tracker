@@ -53,7 +53,10 @@ public class StepService extends Service implements SensorEventListener {
   }
 
   @Override public void onSensorChanged(SensorEvent e) {
-    StepStore.onRaw(this, (long) e.values[0]);
+    long now = System.currentTimeMillis();
+    long wall = now - (SystemClock.elapsedRealtimeNanos() - e.timestamp) / 1000000L;
+    if (wall > now || now - wall > 172800000L) wall = now;
+    StepStore.onRaw(this, (long) e.values[0], wall);
     long t = SystemClock.elapsedRealtime();
     if (t - lastN > 5000) {
       lastN = t;
@@ -65,6 +68,7 @@ public class StepService extends Service implements SensorEventListener {
 
   @Override public void onDestroy() {
     if (sm != null) sm.unregisterListener(this);
+    StepStore.flush(this);
     super.onDestroy();
   }
 }

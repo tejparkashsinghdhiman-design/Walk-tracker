@@ -4,7 +4,7 @@
   if (!C || !C.registerPlugin || (C.isNativePlatform && !C.isNativePlatform())) return;
   const S = C.registerPlugin('Steps'), old = show;
   const st = document.createElement('style');
-  st.textContent = '#dSteps{font-size:clamp(68px,22vw,110px);font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}#dDist{font-size:30px;font-weight:650;margin-top:8px}';
+  st.textContent = '#dSteps{font-size:clamp(68px,22vw,110px);font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}#dDist{font-size:30px;font-weight:650;margin-top:8px}#vW .pb,#pt{display:none}';
   document.head.appendChild(st);
   const tab = document.createElement('button');
   tab.textContent = 'Today';

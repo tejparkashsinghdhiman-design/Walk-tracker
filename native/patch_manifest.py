@@ -9,6 +9,7 @@ comps = '''        <service android:name="com.walktracker.app.StepService" andro
         <receiver android:name="com.walktracker.app.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
     '''

@@ -25,8 +25,17 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('package.json') }}
+          restore-keys: gradle-
+
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
       - name: Copy web app into www (with Today tab)
         run: |
@@ -44,6 +53,13 @@ jobs:
           mkdir -p $D
           cp native/*.java $D/
 
+      - name: Use fixed signing key and set version
+        run: |
+          mkdir -p ~/.android
+          cp native/debug.keystore ~/.android/debug.keystore
+          keytool -list -keystore ~/.android/debug.keystore -storepass android
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+
       - name: Sync web assets
         run: npx cap sync android
 
@@ -51,7 +67,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --build-cache
 
       - name: Rename APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk WalkTracker.apk
