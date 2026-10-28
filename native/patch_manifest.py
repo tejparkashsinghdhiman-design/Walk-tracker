@@ -8,6 +8,13 @@ perms += '    <uses-feature android:name="android.hardware.location.gps" android
 perms += '    <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />\n'
 comps = '''        <service android:name="com.walktracker.app.StepService" android:exported="false" android:foregroundServiceType="health" />
         <service android:name="com.walktracker.app.WalkService" android:exported="false" android:foregroundServiceType="location" />
+        <receiver android:name="com.walktracker.app.StepsWidget" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/steps_widget_info" />
+        </receiver>
+        <receiver android:name="com.walktracker.app.SnapReceiver" android:exported="false" />
         <receiver android:name="com.walktracker.app.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

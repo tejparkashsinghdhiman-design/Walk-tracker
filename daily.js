@@ -45,7 +45,8 @@
       const hh = (hr.hours || []).map(x => Math.round(x * set.cf / 100)), hm = Math.max(...hh, 1);
       $('hPlot').innerHTML = hh.map(x => '<div class="col"><i style="height:' + x / hm * 100 + '%"></i></div>').join('');
       $('hLab').innerHTML = hh.map((x, k) => '<span>' + (k % 6 === 0 ? k : '') + '</span>').join('');
-      if (set.g !== lastG) { lastG = set.g; S.setGoal({ goal: set.g }); }
+      const pk = set.g + '|' + stride().toFixed(2) + '|' + set.w;
+      if (pk !== lastG) { lastG = pk; S.setGoal({ goal: set.g, stride: stride(), weight: set.w }); }
       const st = await S.diag();
       $('kaTxt').textContent = st.ignoring ? 'Battery restrictions: off (good)' : 'Battery restrictions: ON, may stop counting';
       $('dDiag').textContent = 'Step service: ' + (st.svc ? 'running' : 'NOT running') + ' | last sensor update: ' + (st.evtAgo < 0 ? 'none yet' : st.evtAgo + ' s ago') + ' | Physical activity: ' + (st.act ? 'allowed' : 'DENIED') + ' | Step sensor: ' + (st.sensor ? 'yes' : 'NO') + ' | ' + st.brand + ', Android ' + st.sdk;

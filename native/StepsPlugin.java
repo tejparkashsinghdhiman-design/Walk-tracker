@@ -58,6 +58,7 @@ public class StepsPlugin extends Plugin {
   @PluginMethod
   public void today(PluginCall c) {
     JSObject o = new JSObject();
+    StepService.poke();
     o.put("steps", StepStore.today(getContext()));
     SensorManager sm = (SensorManager) getContext().getSystemService(Context.SENSOR_SERVICE);
     o.put("sensor", sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) != null);
@@ -120,7 +121,9 @@ public class StepsPlugin extends Plugin {
   }
 
   @PluginMethod
-  public void setGoal(PluginCall c) { StepStore.setGoal(getContext(), c.getInt("goal", 8000)); c.resolve(); }
+  public void setGoal(PluginCall c) { StepStore.setGoal(getContext(), c.getInt("goal", 8000));
+    StepStore.setProfile(getContext(), c.getDouble("stride", 0.7), c.getDouble("weight", 70.0));
+    StepsWidget.refresh(getContext()); c.resolve(); }
 
   @PluginMethod
   public void status(PluginCall c) {

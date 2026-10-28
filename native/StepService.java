@@ -5,7 +5,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -18,19 +21,33 @@ import android.os.Looper;
 import android.os.SystemClock;
 import androidx.core.app.NotificationCompat;
 
-/** Foreground service that keeps listening to the hardware step counter all day.
- *  Re-registers every 5 min: this refreshes a stalled listener and delivers the current
- *  counter value, so steps taken while the CPU slept are always caught up. */
+/** All-day step service. Safety nets: re-reads the counter every 5 min, on screen-on / unlock /
+ *  date change, and whenever the app UI asks (poke). SnapReceiver adds an alarm-driven snapshot
+ *  that works even if this service has been killed. */
 public class StepService extends Service implements SensorEventListener {
   static volatile long lastEvt = 0;
   static volatile boolean up = false;
+  private static volatile StepService inst;
+  private static long lastPoke = 0;
   private SensorManager sm;
   private Sensor sensor;
   private long lastN = 0;
+  private boolean regd = false;
   private final Handler h = new Handler(Looper.getMainLooper());
   private final Runnable rereg = new Runnable() {
     @Override public void run() { listen(); h.postDelayed(this, 300000); }
   };
+  private final BroadcastReceiver screen = new BroadcastReceiver() {
+    @Override public void onReceive(Context c, Intent i) { listen(); StepsWidget.refresh(c); }
+  };
+
+  static void poke() {
+    StepService s = inst;
+    long t = SystemClock.elapsedRealtime();
+    if (s == null || t - lastPoke < 30000) return;
+    lastPoke = t;
+    s.h.post(s::listen);
+  }
 
   @Override public IBinder onBind(Intent i) { return null; }
 
@@ -65,9 +82,21 @@ public class StepService extends Service implements SensorEventListener {
       if (sensor == null) { up = false; stopSelf(); return START_NOT_STICKY; }
     }
     up = true;
+    inst = this;
+    if (!regd) {
+      IntentFilter fl = new IntentFilter(Intent.ACTION_SCREEN_ON);
+      fl.addAction(Intent.ACTION_USER_PRESENT);
+      fl.addAction(Intent.ACTION_DATE_CHANGED);
+      fl.addAction(Intent.ACTION_TIME_CHANGED);
+      fl.addAction(Intent.ACTION_TIMEZONE_CHANGED);
+      if (Build.VERSION.SDK_INT >= 33) registerReceiver(screen, fl, Context.RECEIVER_NOT_EXPORTED);
+      else registerReceiver(screen, fl);
+      regd = true;
+    }
     listen();
     h.removeCallbacks(rereg);
     h.postDelayed(rereg, 300000);
+    SnapReceiver.schedule(this);
     return START_STICKY;
   }
 
@@ -76,20 +105,21 @@ public class StepService extends Service implements SensorEventListener {
     long now = System.currentTimeMillis();
     long wall = now - (SystemClock.elapsedRealtimeNanos() - e.timestamp) / 1000000L;
     if (wall > now || now - wall > 172800000L) wall = now;
-    if (StepStore.onRaw(this, (long) e.values[0], wall)) goalNote();
+    if (StepStore.onRaw(this, (long) e.values[0], wall)) goalNote(this);
     long t = SystemClock.elapsedRealtime();
     if (t - lastN > 5000) {
       lastN = t;
       ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(1, note());
+      StepsWidget.refresh(this);
     }
   }
 
-  private void goalNote() {
-    NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+  static void goalNote(Context ctx) {
+    NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
     if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(new NotificationChannel("goal", "Goal reached", NotificationManager.IMPORTANCE_DEFAULT));
-    nm.notify(3, new NotificationCompat.Builder(this, "goal").setSmallIcon(android.R.drawable.star_on)
+    nm.notify(3, new NotificationCompat.Builder(ctx, "goal").setSmallIcon(android.R.drawable.star_on)
         .setContentTitle("Daily goal reached")
-        .setContentText(String.format("You hit %,d steps today. Nice work!", StepStore.today(this)))
+        .setContentText(String.format("You hit %,d steps today. Nice work!", StepStore.today(ctx)))
         .setAutoCancel(true).build());
   }
 
@@ -97,7 +127,9 @@ public class StepService extends Service implements SensorEventListener {
 
   @Override public void onDestroy() {
     up = false;
+    inst = null;
     h.removeCallbacks(rereg);
+    if (regd) { try { unregisterReceiver(screen); } catch (Exception e) { /* ignore */ } regd = false; }
     if (sm != null) sm.unregisterListener(this);
     StepStore.flush(this);
     super.onDestroy();

@@ -52,6 +52,7 @@ jobs:
           D=android/app/src/main/java/com/walktracker/app
           mkdir -p $D
           cp native/*.java $D/
+          cp -r native/res/. android/app/src/main/res/
 
       - name: Use fixed signing key and set version
         run: |

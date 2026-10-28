@@ -15,6 +15,7 @@ public class BootReceiver extends BroadcastReceiver {
       if (Build.VERSION.SDK_INT < 29
           || c.checkSelfPermission("android.permission.ACTIVITY_RECOGNITION") == PackageManager.PERMISSION_GRANTED) {
         ContextCompat.startForegroundService(c, new Intent(c, StepService.class));
+        SnapReceiver.schedule(c);
       }
     } catch (Exception e) { /* ignore */ }
   }

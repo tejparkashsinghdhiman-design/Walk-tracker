@@ -80,6 +80,16 @@ class StepStore {
     p(c).edit().putInt("goal", cGoal).apply();
   }
 
+  static synchronized int goal(Context c) { load(c); return cGoal; }
+
+  static void setProfile(Context c, double stride, double w) {
+    p(c).edit().putFloat("pstride", (float) stride).putFloat("pw", (float) w).apply();
+  }
+
+  static double stride(Context c) { return p(c).getFloat("pstride", 0.7f); }
+
+  static double weight(Context c) { return p(c).getFloat("pw", 70f); }
+
   static synchronized void flush(Context c) { load(c); save(c, true); }
 
   static synchronized long today(Context c) {
@@ -95,7 +105,8 @@ class StepStore {
     return a;
   }
 
-  static JSArray history(Context c, int days) {
+  static synchronized JSArray history(Context c, int days) {
+    load(c);
     days = Math.max(1, Math.min(days, 90));
     JSArray a = new JSArray();
     SharedPreferences p = p(c);
@@ -106,7 +117,7 @@ class StepStore {
       String d = f.format(cal.getTime());
       JSObject o = new JSObject();
       o.put("d", d);
-      o.put("n", i == days - 1 ? today(c) : p.getLong("d_" + d, 0));
+      o.put("n", i == days - 1 ? today(c) : (d.equals(cDay) ? cToday : p.getLong("d_" + d, 0)));
       a.put(o);
       cal.add(Calendar.DAY_OF_YEAR, 1);
     }
