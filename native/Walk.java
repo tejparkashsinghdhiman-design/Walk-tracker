@@ -8,9 +8,9 @@ import com.getcapacitor.JSObject;
 
 /** Native walk session: steps from the hardware counter, distance from smoothed GPS. */
 class Walk {
-  static boolean active, running;
+  static boolean active, running, accel;
   static double dist, estD, stride = 0.7;
-  static long steps, ms, since, lastFix, anchorT, kT, saved;
+  static long steps, ms, since, lastFix, lastStepT, anchorT, kT, saved;
   static float acc = -1;
   private static double kLat, kLng, kVar;
   private static boolean kOn, loaded;
@@ -23,6 +23,7 @@ class Walk {
     active = p.getBoolean("w_a", false);
     if (!active) return;
     running = p.getBoolean("w_r", false);
+    accel = p.getBoolean("w_x", false);
     dist = p.getFloat("w_d", 0);
     estD = p.getFloat("w_e", 0);
     steps = p.getLong("w_s", 0);
@@ -35,8 +36,8 @@ class Walk {
 
   private static void reset() { kOn = false; anchor = null; }
 
-  static synchronized void start(Context c, double strideM) {
-    loaded = true; active = true; running = true;
+  static synchronized void start(Context c, double strideM, boolean useAccel) {
+    loaded = true; active = true; running = true; accel = useAccel; lastStepT = 0;
     dist = 0; estD = 0; steps = 0; ms = 0; acc = -1;
     stride = strideM > 0.2 && strideM < 1.5 ? strideM : 0.7;
     since = lastFix = SystemClock.elapsedRealtime();
@@ -64,10 +65,15 @@ class Walk {
 
   static synchronized void flush(Context c) { persist(c, true); }
 
-  static synchronized void onSteps(Context c, long n) {
+  static synchronized void onSteps(Context c, long n) { if (!accel) add(c, n); }
+
+  static synchronized void onAccelSteps(Context c, long n) { if (accel) add(c, n); }
+
+  private static void add(Context c, long n) {
     load(c);
     if (!active || !running) return;
     steps += n;
+    lastStepT = SystemClock.elapsedRealtime();
     if (SystemClock.elapsedRealtime() - lastFix > 8000) { dist += n * stride; estD += n * stride; reset(); }
     persist(c, false);
   }
@@ -89,6 +95,7 @@ class Walk {
     Location pt = new Location("k");
     pt.setLatitude(kLat); pt.setLongitude(kLng);
     if (anchor == null) { anchor = pt; anchorT = t; return; }
+    if (steps >= 5 && t - lastStepT > 10000) { anchor = pt; anchorT = t; return; } // standing still: ignore GPS wander
     double dts = (t - anchorT) / 1000.0;
     if (dts <= 0) return;
     float d = anchor.distanceTo(pt);
@@ -100,7 +107,7 @@ class Walk {
   static synchronized JSObject state(Context c) {
     load(c);
     JSObject o = new JSObject();
-    o.put("active", active); o.put("running", running);
+    o.put("active", active); o.put("running", running); o.put("accel", accel);
     o.put("dist", dist); o.put("estD", estD); o.put("steps", steps);
     o.put("ms", elapsed()); o.put("acc", (double) acc);
     return o;
@@ -110,7 +117,7 @@ class Walk {
     long t = SystemClock.elapsedRealtime();
     if (!force && t - saved < 10000) return;
     saved = t;
-    StepStore.p(c).edit().putBoolean("w_a", active).putBoolean("w_r", running)
+    StepStore.p(c).edit().putBoolean("w_a", active).putBoolean("w_r", running).putBoolean("w_x", accel)
         .putFloat("w_d", (float) dist).putFloat("w_e", (float) estD).putLong("w_s", steps)
         .putLong("w_m", elapsed()).putFloat("w_k", (float) stride).apply();
   }

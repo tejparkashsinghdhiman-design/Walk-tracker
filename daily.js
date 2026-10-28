@@ -22,6 +22,7 @@
     + '<h2>Keep it running</h2><div class="f"><span id="kaTxt">Checking...</span><button class="x" id="kaBtn">Fix</button></div>'
     + '<div class="f"><span>Autostart / background launch</span><button class="x" id="asBtn">Open</button></div>'
     + '<div class="f"><span>Export your data</span><button class="x" id="exBtn">Share</button></div>'
+    + '<p class="tip" id="dDiag"></p>'
     + '<p class="tip" id="dMsg">Counting all day in the background. The count resets at midnight.</p>';
   document.querySelector('main').appendChild(v);
 
@@ -45,8 +46,10 @@
       $('hPlot').innerHTML = hh.map(x => '<div class="col"><i style="height:' + x / hm * 100 + '%"></i></div>').join('');
       $('hLab').innerHTML = hh.map((x, k) => '<span>' + (k % 6 === 0 ? k : '') + '</span>').join('');
       if (set.g !== lastG) { lastG = set.g; S.setGoal({ goal: set.g }); }
-      const st = await S.status();
+      const st = await S.diag();
       $('kaTxt').textContent = st.ignoring ? 'Battery restrictions: off (good)' : 'Battery restrictions: ON, may stop counting';
+      $('dDiag').textContent = 'Step service: ' + (st.svc ? 'running' : 'NOT running') + ' | last sensor update: ' + (st.evtAgo < 0 ? 'none yet' : st.evtAgo + ' s ago') + ' | Physical activity: ' + (st.act ? 'allowed' : 'DENIED') + ' | Step sensor: ' + (st.sensor ? 'yes' : 'NO') + ' | ' + st.brand + ', Android ' + st.sdk;
+      if (!st.svc && st.act && st.sensor) S.start().catch(() => {});
     } catch (e) {}
   }
 
@@ -101,7 +104,7 @@
   };
   window.begin = async function (reset) {
     msg('');
-    try { attach(reset ? await S.walkStart({ stride: stride() }) : await S.walkResume()); }
+    try { attach(reset ? await S.walkStart({ stride: stride(), accel: set.sa === 1 }) : await S.walkResume()); }
     catch (e) { msg('Allow Precise location and Physical activity so walks keep counting with the screen off.'); }
   };
   $('pauseBtn').onclick = async () => { try { attach(await S.walkPause()); } catch (e) {} };

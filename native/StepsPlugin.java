@@ -85,7 +85,7 @@ public class StepsPlugin extends Plugin {
   }
 
   private void beginWalk(PluginCall c) {
-    Walk.start(getContext(), c.getDouble("stride", 0.7));
+    Walk.start(getContext(), c.getDouble("stride", 0.7), c.getBoolean("accel", false) || !hasStepSensor());
     svc("go");
     c.resolve(Walk.state(getContext()));
   }
@@ -168,6 +168,26 @@ public class StepsPlugin extends Plugin {
     Intent ch = Intent.createChooser(s, "Export data");
     ch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
     try { getContext().startActivity(ch); c.resolve(); } catch (Exception e) { c.reject(String.valueOf(e.getMessage())); }
+  }
+
+  private boolean hasStepSensor() {
+    SensorManager m = (SensorManager) getContext().getSystemService(Context.SENSOR_SERVICE);
+    return m.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) != null;
+  }
+
+  @PluginMethod
+  public void diag(PluginCall c) {
+    Context x = getContext();
+    JSObject o = new JSObject();
+    o.put("sensor", hasStepSensor());
+    o.put("svc", StepService.up);
+    long t = StepService.lastEvt;
+    o.put("evtAgo", t == 0 ? -1 : (android.os.SystemClock.elapsedRealtime() - t) / 1000);
+    o.put("act", Build.VERSION.SDK_INT < 29 || ContextCompat.checkSelfPermission(x, Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED);
+    o.put("ignoring", ((PowerManager) x.getSystemService(Context.POWER_SERVICE)).isIgnoringBatteryOptimizations(x.getPackageName()));
+    o.put("sdk", Build.VERSION.SDK_INT);
+    o.put("brand", Build.MANUFACTURER + " " + Build.MODEL);
+    c.resolve(o);
   }
 
   @PluginMethod

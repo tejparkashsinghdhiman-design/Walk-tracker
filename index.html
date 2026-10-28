@@ -110,13 +110,14 @@ li .r{text-align:right;margin-left:auto}
     <label class="f">Weight (kg)<input id="inW" type="number" inputmode="numeric" min="30" max="250"></label>
     <label class="f">Daily step goal<input id="inG" type="number" inputmode="numeric" min="1000" max="100000" step="500"></label>
     <label class="f">Step correction (%)<input id="inC" type="number" inputmode="numeric" min="70" max="150"></label>
+    <label class="f">Walk step source<select id="inS"><option value="0">Phone step sensor</option><option value="1">Accelerometer</option></select></label>
     <div class="f"><span id="strTxt"></span><button class="x" id="strBtn">Reset</button></div>
-    <p class="tip">Step correction: walk exactly 100 steps. If the app shows 87, enter 115 (100 divided by 87). Stride starts from your height and auto-calibrates after walks of 150+ steps with a good GPS signal. This makes step counts and indoor distance more accurate over time.</p>
+    <p class="tip">Walk step source: try Accelerometer if the phone sensor under-counts your walks (Android app only). Step correction: walk exactly 100 steps. If the app shows 87, enter 115 (100 divided by 87). Stride starts from your height and auto-calibrates after walks of 150+ steps with a good GPS signal. This makes step counts and indoor distance more accurate over time.</p>
   </section>
 </main>
 <script>
 const $=id=>document.getElementById(id);
-let unit='km',hist=[],set={h:170,w:70,g:8000,st:0,cf:100},state='idle',dist=0,elapsed=0,tStart=0,watchId=null,kf=null,anchor=null,timer=null,wake=null,hid=false,clearArm=false,
+let unit='km',hist=[],set={h:170,w:70,g:8000,st:0,cf:100,sa:0},state='idle',dist=0,elapsed=0,tStart=0,watchId=null,kf=null,anchor=null,timer=null,wake=null,hid=false,clearArm=false,
 sSteps=0,gSteps=0,estD=0,sensor=false,lastFix=0,raf=0,base=9.8,sm=0,p1=0,p2=0,peak=2,lastS=0,run=0,pT=0;
 const stride=()=>set.st||set.h*0.00415;
 const dk=t=>{const d=new Date(t);return d.getFullYear()*10000+d.getMonth()*100+d.getDate()};
@@ -125,7 +126,7 @@ const sched=()=>{raf||(raf=requestAnimationFrame(()=>{raf=0;render()}))};
 
 function load(){try{unit=localStorage.getItem('wt_unit')==='mi'?'mi':'km';
 const h=JSON.parse(localStorage.getItem('wt_hist')||'[]');hist=Array.isArray(h)?h.filter(x=>x&&isFinite(x.m)&&isFinite(x.s)&&isFinite(x.ts)):[];
-const s=JSON.parse(localStorage.getItem('wt_set')||'{}');['h','w','g','st','cf'].forEach(k=>{if(typeof s[k]==='number'&&isFinite(s[k])&&(s[k]>0||k==='st'))set[k]=s[k]})}catch(e){}}
+const s=JSON.parse(localStorage.getItem('wt_set')||'{}');['h','w','g','st','cf','sa'].forEach(k=>{if(typeof s[k]==='number'&&isFinite(s[k])&&(s[k]>0||k==='st'))set[k]=s[k]})}catch(e){}}
 function save(){dmCache=null;try{localStorage.setItem('wt_unit',unit);localStorage.setItem('wt_hist',JSON.stringify(hist));localStorage.setItem('wt_set',JSON.stringify(set))}catch(e){}}
 
 function hav(a,b){const R=6371008.8,r=Math.PI/180,dLa=(b.lat-a.lat)*r,dLo=(b.lng-a.lng)*r;const x=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
@@ -284,7 +285,7 @@ function renderStats(){
   });
 }
 function renderSet(){
-  $('inH').value=set.h;$('inW').value=set.w;$('inG').value=set.g;$('inC').value=set.cf;
+  $('inH').value=set.h;$('inW').value=set.w;$('inG').value=set.g;$('inC').value=set.cf;$('inS').value=set.sa;
   $('strTxt').textContent='Stride '+stride().toFixed(2)+' m ('+(set.st?'calibrated':'from height')+')';
   $('strBtn').hidden=!set.st;
 }
@@ -301,6 +302,7 @@ $('stopBtn').onclick=finish;
 $('tW').onclick=()=>show('W');$('tS').onclick=()=>show('S');$('setBtn').onclick=()=>show('T');
 $('unitBtn').onclick=()=>{unit=unit==='km'?'mi':'km';save();render();if(!$('vS').hidden)renderStats()};
 [['inH','h',100,230],['inW','w',30,250],['inG','g',1000,100000],['inC','cf',70,150]].forEach(([id,k,lo,hi])=>{$(id).onchange=()=>{const v=parseFloat($(id).value);if(isFinite(v))set[k]=Math.round(Math.min(hi,Math.max(lo,v)));save();renderSet();render()}});
+$('inS').onchange=()=>{set.sa=+$('inS').value;save()};
 $('strBtn').onclick=()=>{set.st=0;save();renderSet();render()};
 $('hist').onclick=e=>{
   const b=e.target.closest('button');if(!b)return;

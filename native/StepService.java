@@ -12,15 +12,25 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.SystemClock;
 import androidx.core.app.NotificationCompat;
 
-/** Foreground service that keeps listening to the hardware step counter all day. */
+/** Foreground service that keeps listening to the hardware step counter all day.
+ *  Re-registers every 5 min: this refreshes a stalled listener and delivers the current
+ *  counter value, so steps taken while the CPU slept are always caught up. */
 public class StepService extends Service implements SensorEventListener {
+  static volatile long lastEvt = 0;
+  static volatile boolean up = false;
   private SensorManager sm;
+  private Sensor sensor;
   private long lastN = 0;
-  private boolean on = false;
+  private final Handler h = new Handler(Looper.getMainLooper());
+  private final Runnable rereg = new Runnable() {
+    @Override public void run() { listen(); h.postDelayed(this, 300000); }
+  };
 
   @Override public IBinder onBind(Intent i) { return null; }
 
@@ -34,6 +44,12 @@ public class StepService extends Service implements SensorEventListener {
         .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(pi).build();
   }
 
+  private void listen() {
+    if (sm == null || sensor == null) return;
+    sm.unregisterListener(this);
+    sm.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+  }
+
   @Override public int onStartCommand(Intent i, int f, int id) {
     if (Build.VERSION.SDK_INT >= 26) {
       ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).createNotificationChannel(
@@ -42,17 +58,21 @@ public class StepService extends Service implements SensorEventListener {
     try {
       if (Build.VERSION.SDK_INT >= 34) startForeground(1, note(), ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH);
       else startForeground(1, note());
-    } catch (Exception e) { stopSelf(); return START_NOT_STICKY; }
-    if (!on) {
+    } catch (Exception e) { up = false; stopSelf(); return START_NOT_STICKY; }
+    if (sensor == null) {
       sm = (SensorManager) getSystemService(SENSOR_SERVICE);
-      Sensor s = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
-      if (s == null) { stopSelf(); return START_NOT_STICKY; }
-      on = sm.registerListener(this, s, SensorManager.SENSOR_DELAY_NORMAL);
+      sensor = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+      if (sensor == null) { up = false; stopSelf(); return START_NOT_STICKY; }
     }
+    up = true;
+    listen();
+    h.removeCallbacks(rereg);
+    h.postDelayed(rereg, 300000);
     return START_STICKY;
   }
 
   @Override public void onSensorChanged(SensorEvent e) {
+    lastEvt = SystemClock.elapsedRealtime();
     long now = System.currentTimeMillis();
     long wall = now - (SystemClock.elapsedRealtimeNanos() - e.timestamp) / 1000000L;
     if (wall > now || now - wall > 172800000L) wall = now;
@@ -76,6 +96,8 @@ public class StepService extends Service implements SensorEventListener {
   @Override public void onAccuracyChanged(Sensor s, int a) {}
 
   @Override public void onDestroy() {
+    up = false;
+    h.removeCallbacks(rereg);
     if (sm != null) sm.unregisterListener(this);
     StepStore.flush(this);
     super.onDestroy();
